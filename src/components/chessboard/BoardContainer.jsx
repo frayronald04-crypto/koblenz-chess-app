@@ -17,7 +17,7 @@ export function BoardContainer({
   shakeError = false
 }) {
   const containerRef = useRef(null);
-  const [boardWidth, setBoardWidth] = useState(480);
+  const [_boardWidth, setBoardWidth] = useState(480);
 
   const currentThemeObj = BOARD_THEMES[boardTheme] || BOARD_THEMES.wood;
 
@@ -30,19 +30,36 @@ export function BoardContainer({
     return raw;
   }, [position, fen]);
 
-  // Medir dinámicamente el ancho real del contenedor para evitar fallos internos en react-chessboard
+  // Medir dinámicamente el ancho real del contenedor mediante ResizeObserver
   useEffect(() => {
-    function updateWidth() {
+    if (!containerRef.current) return;
+
+    const updateWidth = () => {
       if (containerRef.current) {
         const width = containerRef.current.getBoundingClientRect().width;
         if (width > 0) {
           setBoardWidth(Math.floor(width));
         }
       }
-    }
+    };
+
     updateWidth();
+
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        if (entry.contentRect.width > 0) {
+          setBoardWidth(Math.floor(entry.contentRect.width));
+        }
+      }
+    });
+
+    observer.observe(containerRef.current);
     window.addEventListener('resize', updateWidth);
-    return () => window.removeEventListener('resize', updateWidth);
+
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', updateWidth);
+    };
   }, []);
 
   // Compute square styles for active highlights
@@ -60,7 +77,7 @@ export function BoardContainer({
   }, [highlightSquares]);
 
   return (
-    <div className={`relative w-full max-w-[540px] mx-auto transition-transform ${shakeError ? 'animate-shake' : ''}`}>
+    <div className={`relative w-full max-w-[min(100%,_500px)] mx-auto transition-transform ${shakeError ? 'animate-shake' : ''}`}>
       {/* Board Card Frame with Glow */}
       <div className="p-2 sm:p-3 rounded-3xl glass-panel border border-slate-700/80 board-shadow relative overflow-hidden">
         {/* Flip Board Button */}
@@ -75,12 +92,19 @@ export function BoardContainer({
         )}
 
         {/* Board Component */}
-        <div ref={containerRef} className="rounded-2xl overflow-hidden w-full aspect-square border border-slate-800 shadow-inner flex items-center justify-center">
+        <div
+          ref={containerRef}
+          className="rounded-2xl overflow-hidden w-full aspect-square border border-slate-800 shadow-inner flex items-center justify-center relative"
+        >
           <Chessboard
             options={{
               position: currentPositionInput,
               boardOrientation: boardOrientation,
-              boardStyle: { width: boardWidth, height: boardWidth },
+              boardStyle: {
+                width: '100%',
+                height: '100%',
+                aspectRatio: '1 / 1'
+              },
               darkSquareStyle: { backgroundColor: currentThemeObj.darkSquare },
               lightSquareStyle: { backgroundColor: currentThemeObj.lightSquare },
               squareStyles: customSquareStyles,
