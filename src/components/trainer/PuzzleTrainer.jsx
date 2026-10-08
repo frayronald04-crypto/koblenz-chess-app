@@ -20,7 +20,8 @@ export function PuzzleTrainer({
   puzzles = [],
   completedPuzzleIds = [],
   onPuzzleSolved,
-  boardTheme
+  boardTheme,
+  isMuted = false
 }) {
   const [selectedPuzzleIndex, setSelectedPuzzleIndex] = useState(0);
   const currentPuzzle = puzzles[selectedPuzzleIndex] || puzzles[0];
@@ -38,7 +39,7 @@ export function PuzzleTrainer({
     resetPuzzle,
     toggleHint,
     toggleSolutionModal
-  } = usePuzzleTrainer(currentPuzzle, onPuzzleSolved);
+  } = usePuzzleTrainer(currentPuzzle, onPuzzleSolved, isMuted);
 
   if (!chapter || !puzzles || puzzles.length === 0) {
     return (
@@ -74,11 +75,79 @@ export function PuzzleTrainer({
     }
   };
 
+  const turnIndicatorContent = (
+    <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+      <div className="flex items-center gap-2">
+        <div
+          className={`w-3.5 h-3.5 rounded-full border shadow-sm ${
+            currentPuzzle.turn === 'w'
+              ? 'bg-white border-slate-300'
+              : 'bg-slate-900 border-slate-700'
+          }`}
+        />
+        <span className="font-bold text-sm text-slate-200">
+          {getTurnText(currentPuzzle.turn)}
+        </span>
+      </div>
+
+      {isCurrentSolved && (
+        <span className="px-2.5 py-1 rounded-xl bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 text-xs font-bold flex items-center gap-1">
+          <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
+          <span>Resuelto</span>
+        </span>
+      )}
+    </div>
+  );
+
+  const actionButtons = (
+    <div className="grid grid-cols-2 gap-2 pt-2">
+      <button
+        onClick={toggleHint}
+        className={`min-h-[44px] flex items-center justify-center gap-2 p-2.5 rounded-xl text-xs font-semibold transition-all border select-none touch-manipulation active:scale-95 ${
+          showHint
+            ? 'bg-amber-500/20 border-amber-500/40 text-amber-300 active:bg-amber-500/30'
+            : 'bg-slate-800 hover:bg-slate-700 active:bg-slate-700 text-slate-300 border-slate-700'
+        }`}
+        title={showHint ? 'Ocultar Pista' : 'Pedir Pista'}
+      >
+        <HelpCircle className="w-4 h-4 text-amber-400 shrink-0" />
+        <span>{showHint ? 'Ocultar Pista' : 'Pedir Pista'}</span>
+      </button>
+
+      <button
+        onClick={toggleSolutionModal}
+        className="min-h-[44px] flex items-center justify-center gap-2 p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 active:bg-slate-700 active:scale-95 text-slate-300 border border-slate-700 text-xs font-semibold transition-all select-none touch-manipulation"
+        title="Solucionario"
+      >
+        <Eye className="w-4 h-4 text-indigo-400 shrink-0" />
+        <span>Solucionario</span>
+      </button>
+
+      <button
+        onClick={resetPuzzle}
+        className="min-h-[44px] flex items-center justify-center gap-2 p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 active:bg-slate-700 active:scale-95 text-slate-300 border border-slate-700 text-xs font-semibold transition-all select-none touch-manipulation"
+        title="Reiniciar Ejercicio"
+      >
+        <RotateCcw className="w-4 h-4 text-slate-400 shrink-0" />
+        <span>Reiniciar</span>
+      </button>
+
+      <button
+        onClick={handleNextPuzzle}
+        className="min-h-[44px] flex items-center justify-center gap-2 p-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 active:from-emerald-700 active:to-teal-600 active:scale-95 text-white text-xs font-semibold transition-all shadow-md shadow-emerald-600/30 select-none touch-manipulation"
+        title="Siguiente Ejercicio"
+      >
+        <span>Siguiente</span>
+        <ChevronRight className="w-4 h-4 shrink-0" />
+      </button>
+    </div>
+  );
+
   return (
     <div className="space-y-6">
-      {/* Puzzle Selector & Header Bar */}
-      <div className="glass-panel p-4 rounded-2xl border border-slate-800 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
+      {/* Selector de Ejercicios y Barra Superior */}
+      <div className="glass-panel p-4 rounded-2xl border border-slate-800 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 overflow-hidden">
+        <div className="flex items-center gap-3 shrink-0">
           <div className="p-2.5 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-500 text-white shadow-md">
             <Target className="w-5 h-5" />
           </div>
@@ -95,8 +164,8 @@ export function PuzzleTrainer({
           </div>
         </div>
 
-        {/* Puzzle Selector Pills */}
-        <div className="flex items-center gap-2 w-full md:w-auto overflow-x-auto pb-1 md:pb-0">
+        {/* Selector Horizontal de Ejercicios (Scroll táctil fluido) */}
+        <div className="flex items-center gap-2 w-full md:w-auto overflow-x-auto pb-1 md:pb-0 touch-pan-x select-none min-w-0">
           {puzzles.map((puz, idx) => {
             const isSolved = completedPuzzleIds.includes(puz.id);
             const isSelected = idx === selectedPuzzleIndex;
@@ -105,7 +174,7 @@ export function PuzzleTrainer({
               <button
                 key={puz.id}
                 onClick={() => setSelectedPuzzleIndex(idx)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all border shrink-0 ${
+                className={`flex items-center gap-1.5 px-3 py-2 min-h-[38px] rounded-xl text-xs font-semibold transition-all border shrink-0 touch-manipulation active:scale-95 ${
                   isSelected
                     ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white border-emerald-400 shadow-md shadow-emerald-600/20'
                     : isSolved
@@ -114,9 +183,9 @@ export function PuzzleTrainer({
                 }`}
               >
                 {isSolved ? (
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
                 ) : (
-                  <Star className="w-3.5 h-3.5 opacity-60" />
+                  <Star className="w-3.5 h-3.5 opacity-60 shrink-0" />
                 )}
                 <span>Ejercicio {idx + 1}</span>
               </button>
@@ -125,10 +194,20 @@ export function PuzzleTrainer({
         </div>
       </div>
 
-      {/* Main Trainer View: Board + Control Panel */}
+      {/* Vista del Entrenador: Tablero + Panel de Control */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        {/* Left: Interactive Board */}
+        {/* Columna Izquierda: Tablero Interactivo (+ Vista Compacta en Móvil) */}
         <div className="lg:col-span-7 space-y-4">
+          {/* Indicador de Turno y Estado (Compacto en Móvil <lg) */}
+          <div className="lg:hidden glass-card p-4 rounded-2xl border border-slate-800 space-y-3">
+            {turnIndicatorContent}
+            <FeedbackBadge
+              status={status}
+              message={feedbackMessage}
+              isAiThinking={isAiThinking}
+            />
+          </div>
+
           <BoardContainer
             fen={fen}
             boardOrientation={boardOrientation}
@@ -137,42 +216,30 @@ export function PuzzleTrainer({
             arePiecesDraggable={status !== 'SOLVED' && !isAiThinking}
             shakeError={status === 'WRONG_MOVE'}
           />
+
+          {/* En móvil: Pista y Botones de Acción debajo del tablero */}
+          <div className="lg:hidden space-y-4">
+            {showHint && (
+              <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-200 text-xs leading-relaxed flex items-start gap-2.5 animate-fadeIn">
+                <HelpCircle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                <span>{currentHintText}</span>
+              </div>
+            )}
+            {actionButtons}
+          </div>
         </div>
 
-        {/* Right: Controls & Hints Panel */}
-        <div className="lg:col-span-5 space-y-4">
-          {/* Turn Indicator & Status */}
+        {/* Columna Derecha: Panel Lateral Completo (Escritorio lg) */}
+        <div className="hidden lg:block lg:col-span-5 space-y-4">
           <div className="glass-card p-5 rounded-2xl border border-slate-800 space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <div className="flex items-center gap-2">
-                <div
-                  className={`w-3 h-3 rounded-full border shadow-sm ${
-                    currentPuzzle.turn === 'w'
-                      ? 'bg-white border-slate-300'
-                      : 'bg-slate-900 border-slate-700'
-                  }`}
-                />
-                <span className="font-bold text-sm text-slate-200">
-                  {getTurnText(currentPuzzle.turn)}
-                </span>
-              </div>
+            {turnIndicatorContent}
 
-              {isCurrentSolved && (
-                <span className="px-2.5 py-1 rounded-xl bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 text-xs font-bold flex items-center gap-1">
-                  <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
-                  <span>Resuelto</span>
-                </span>
-              )}
-            </div>
-
-            {/* Live Feedback Badge */}
             <FeedbackBadge
               status={status}
               message={feedbackMessage}
               isAiThinking={isAiThinking}
             />
 
-            {/* Hint Box if toggled */}
             {showHint && (
               <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-200 text-xs leading-relaxed flex items-start gap-2.5 animate-fadeIn">
                 <HelpCircle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
@@ -180,49 +247,12 @@ export function PuzzleTrainer({
               </div>
             )}
 
-            {/* Action Buttons Toolbar */}
-            <div className="grid grid-cols-2 gap-2 pt-2">
-              <button
-                onClick={toggleHint}
-                className={`flex items-center justify-center gap-2 p-2.5 rounded-xl text-xs font-semibold transition-all border ${
-                  showHint
-                    ? 'bg-amber-500/20 border-amber-500/40 text-amber-300'
-                    : 'bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700'
-                }`}
-              >
-                <HelpCircle className="w-4 h-4 text-amber-400" />
-                <span>{showHint ? 'Ocultar Pista' : 'Pedir Pista'}</span>
-              </button>
-
-              <button
-                onClick={toggleSolutionModal}
-                className="flex items-center justify-center gap-2 p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 text-xs font-semibold transition-all"
-              >
-                <Eye className="w-4 h-4 text-indigo-400" />
-                <span>Solucionario</span>
-              </button>
-
-              <button
-                onClick={resetPuzzle}
-                className="flex items-center justify-center gap-2 p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 text-xs font-semibold transition-all"
-              >
-                <RotateCcw className="w-4 h-4 text-slate-400" />
-                <span>Reiniciar</span>
-              </button>
-
-              <button
-                onClick={handleNextPuzzle}
-                className="flex items-center justify-center gap-2 p-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white text-xs font-semibold transition-all shadow-md shadow-emerald-600/30"
-              >
-                <span>Siguiente</span>
-                <ChevronRight className="w-4 h-4" />
-              </button>
-            </div>
+            {actionButtons}
           </div>
         </div>
       </div>
 
-      {/* Solution Modal Popup */}
+      {/* Solucionario Popup */}
       <SolutionModal
         puzzle={currentPuzzle}
         isOpen={showSolutionModal}
@@ -231,3 +261,4 @@ export function PuzzleTrainer({
     </div>
   );
 }
+

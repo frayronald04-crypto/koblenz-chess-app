@@ -47,7 +47,8 @@ export function BookReader({
   activeChapterId,
   onSelectChapter,
   onSwitchMode,
-  boardTheme
+  boardTheme,
+  isMuted = false
 }) {
   const [selectedChapterId, setSelectedChapterId] = useState(activeChapterId || 'despensa');
   const [selectedExampleIndex, setSelectedExampleIndex] = useState(0);
@@ -89,7 +90,7 @@ export function BookReader({
     goToMove,
     flipBoard,
     toggleAutoPlay
-  } = useChessGame(currentExample);
+  } = useChessGame(currentExample, isMuted);
 
   const handleChapterChange = (id) => {
     setSelectedChapterId(id);

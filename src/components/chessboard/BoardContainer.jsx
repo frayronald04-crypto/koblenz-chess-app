@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState, useEffect } from 'react';
+import React, { useMemo, useRef, useState, useEffect, useCallback } from 'react';
 import { Chessboard } from 'react-chessboard';
 import { RotateCw } from 'lucide-react';
 import { BOARD_THEMES } from '../settings/BoardThemeSelector';
@@ -18,6 +18,7 @@ export function BoardContainer({
 }) {
   const containerRef = useRef(null);
   const [_boardWidth, setBoardWidth] = useState(480);
+  const [selectedSquare, setSelectedSquare] = useState(null);
 
   const currentThemeObj = BOARD_THEMES[boardTheme] || BOARD_THEMES.wood;
 
@@ -29,6 +30,11 @@ export function BoardContainer({
     }
     return raw;
   }, [position, fen]);
+
+  // Limpiar casilla seleccionada cuando el FEN / posición cambie
+  useEffect(() => {
+    setSelectedSquare(null);
+  }, [currentPositionInput]);
 
   // Medir dinámicamente el ancho real del contenedor mediante ResizeObserver
   useEffect(() => {
@@ -62,7 +68,40 @@ export function BoardContainer({
     };
   }, []);
 
-  // Compute square styles for active highlights
+  // Manejador del toque/clic en casilla para interacción táctil "tap-to-move"
+  const handleSquareClick = useCallback(
+    (arg1, arg2) => {
+      if (!arePiecesDraggable) return;
+
+      let square = null;
+      if (typeof arg1 === 'string') {
+        square = arg1;
+      } else if (arg1 && typeof arg1 === 'object' && arg1.square) {
+        square = arg1.square;
+      } else if (typeof arg2 === 'string') {
+        square = arg2;
+      }
+
+      if (!square) return;
+
+      if (!selectedSquare) {
+        // Primer toque: resalta la casilla de origen
+        setSelectedSquare(square);
+      } else if (selectedSquare === square) {
+        // Tocar la misma casilla: deseleccionar
+        setSelectedSquare(null);
+      } else {
+        // Segundo toque: ejecuta el movimiento onPieceDrop
+        if (onPieceDrop) {
+          onPieceDrop(selectedSquare, square);
+        }
+        setSelectedSquare(null);
+      }
+    },
+    [arePiecesDraggable, selectedSquare, onPieceDrop]
+  );
+
+  // Compute square styles for active highlights and selected square for mobile screens
   const customSquareStyles = useMemo(() => {
     const styles = {};
     if (highlightSquares && highlightSquares.length > 0) {
@@ -73,8 +112,18 @@ export function BoardContainer({
         };
       });
     }
+
+    if (selectedSquare) {
+      styles[selectedSquare] = {
+        ...(styles[selectedSquare] || {}),
+        backgroundColor: 'rgba(59, 130, 246, 0.6)',
+        boxShadow: 'inset 0 0 0 3px #2563eb, 0 0 8px rgba(59, 130, 246, 0.8)',
+        borderRadius: '4px'
+      };
+    }
+
     return styles;
-  }, [highlightSquares]);
+  }, [highlightSquares, selectedSquare]);
 
   return (
     <div className={`relative w-full max-w-[min(100%,_500px)] mx-auto transition-transform ${shakeError ? 'animate-shake' : ''}`}>
@@ -94,7 +143,8 @@ export function BoardContainer({
         {/* Board Component */}
         <div
           ref={containerRef}
-          className="rounded-2xl overflow-hidden w-full aspect-square border border-slate-800 shadow-inner flex items-center justify-center relative"
+          className="rounded-2xl overflow-hidden w-full aspect-square border border-slate-800 shadow-inner flex items-center justify-center relative touch-none"
+          style={{ touchAction: 'none' }}
         >
           <Chessboard
             options={{
@@ -110,7 +160,9 @@ export function BoardContainer({
               squareStyles: customSquareStyles,
               allowDragging: arePiecesDraggable,
               animationDurationInMs: 250,
+              onSquareClick: handleSquareClick,
               onPieceDrop: (dropArg1, dropArg2) => {
+                setSelectedSquare(null);
                 if (!onPieceDrop) return false;
                 let source = dropArg1;
                 let target = dropArg2;

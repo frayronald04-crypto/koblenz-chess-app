@@ -2,10 +2,15 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { Chess } from 'chess.js';
 import { chessAudio } from '../utils/audio';
 
-export function useChessGame(example) {
+export function useChessGame(example, isMuted = false) {
   const getInitialFen = useCallback((ex) => {
     return ex?.initialFen || ex?.fen || 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
   }, []);
+
+  // Sync chessAudio mute state
+  useEffect(() => {
+    chessAudio.toggleMute(isMuted);
+  }, [isMuted]);
 
   // Initialize chess engine instance and fen state
   const [fen, setFen] = useState(() => {
@@ -83,16 +88,18 @@ export function useChessGame(example) {
     setFen(nextFen);
     setCurrentMoveIndex(targetIdx);
 
-    // Audio feedback
-    const lastMove = example.moves[targetIdx];
-    if (lastMove?.san?.includes('x')) {
-      chessAudio.playCapture();
-    } else if (lastMove?.san?.includes('+') || lastMove?.san?.includes('#')) {
-      chessAudio.playCheck();
-    } else {
-      chessAudio.playMove();
+    // Audio feedback (solo si el sonido no está silenciado)
+    if (!isMuted) {
+      const lastMove = example.moves[targetIdx];
+      if (lastMove?.san?.includes('x')) {
+        chessAudio.playCapture();
+      } else if (lastMove?.san?.includes('+') || lastMove?.san?.includes('#')) {
+        chessAudio.playCheck();
+      } else {
+        chessAudio.playMove();
+      }
     }
-  }, [example, totalMoves, getInitialFen]);
+  }, [example, totalMoves, getInitialFen, isMuted]);
 
   const goToFirst = useCallback(() => goToMove(-1), [goToMove]);
   const goToPrev = useCallback(() => goToMove(currentMoveIndex - 1), [goToMove, currentMoveIndex]);
@@ -146,3 +153,4 @@ export function useChessGame(example) {
     toggleAutoPlay
   };
 }
+

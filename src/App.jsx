@@ -98,12 +98,14 @@ export function App() {
               onSelectChapter={setActiveChapterId}
               onSwitchMode={setActiveMode}
               boardTheme={boardTheme}
+              isMuted={isMuted}
             />
           ) : activeMode === 'STUDY' ? (
             <ChapterViewer
               chapter={activeChapter}
               examples={chapterExamples}
               boardTheme={boardTheme}
+              isMuted={isMuted}
             />
           ) : (
             <PuzzleTrainer
@@ -112,6 +114,7 @@ export function App() {
               completedPuzzleIds={safeCompletedPuzzleIds}
               onPuzzleSolved={handlePuzzleSolved}
               boardTheme={boardTheme}
+              isMuted={isMuted}
             />
           )}
         </main>

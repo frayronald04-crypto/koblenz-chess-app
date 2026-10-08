@@ -3,7 +3,7 @@ import { Chess } from 'chess.js';
 import confetti from 'canvas-confetti';
 import { chessAudio } from '../utils/audio';
 
-export function usePuzzleTrainer(puzzle, onPuzzleSolved) {
+export function usePuzzleTrainer(puzzle, onPuzzleSolved, isMuted = false) {
   const [game, setGame] = useState(() => new Chess(puzzle?.fen || 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1'));
   const [stepIndex, setStepIndex] = useState(0);
   const [status, setStatus] = useState('IDLE'); // 'IDLE', 'CORRECT_STEP', 'WRONG_MOVE', 'SOLVED'
@@ -14,6 +14,11 @@ export function usePuzzleTrainer(puzzle, onPuzzleSolved) {
   const [isAiThinking, setIsAiThinking] = useState(false);
 
   const computerTimerRef = useRef(null);
+
+  // Sync chessAudio mute state
+  useEffect(() => {
+    chessAudio.toggleMute(isMuted);
+  }, [isMuted]);
 
   // Initialize puzzle
   const initPuzzle = useCallback((puzzleData) => {
@@ -82,7 +87,7 @@ export function usePuzzleTrainer(puzzle, onPuzzleSolved) {
     }
 
     if (!moveResult) {
-      chessAudio.playError();
+      if (!isMuted) chessAudio.playError();
       setStatus('WRONG_MOVE');
       setFeedbackMessage('Movimiento no permitido por las reglas del ajedrez.');
       return false;
@@ -93,7 +98,7 @@ export function usePuzzleTrainer(puzzle, onPuzzleSolved) {
     const isCorrectTo = currentStep.to === to;
 
     if (!isCorrectFrom || !isCorrectTo) {
-      chessAudio.playError();
+      if (!isMuted) chessAudio.playError();
       setStatus('WRONG_MOVE');
       setFeedbackMessage(`Jugada alternativa (${moveResult.san}). No es la solución táctica recomendada por Koblenz en este diagrama.`);
       return false;
@@ -101,13 +106,15 @@ export function usePuzzleTrainer(puzzle, onPuzzleSolved) {
 
     // Correct user move!
     setGame(gameCopy);
-    
-    if (moveResult.captured) {
-      chessAudio.playCapture();
-    } else if (moveResult.san.includes('+')) {
-      chessAudio.playCheck();
-    } else {
-      chessAudio.playMove();
+
+    if (!isMuted) {
+      if (moveResult.captured) {
+        chessAudio.playCapture();
+      } else if (moveResult.san.includes('+')) {
+        chessAudio.playCheck();
+      } else {
+        chessAudio.playMove();
+      }
     }
 
     // Check if there is an opponent response in this step
@@ -123,10 +130,12 @@ export function usePuzzleTrainer(puzzle, onPuzzleSolved) {
           const aiMoveResult = aiGame.move({ from: responseMove.from, to: responseMove.to, promotion: 'q' });
           setGame(aiGame);
 
-          if (aiMoveResult?.captured) {
-            chessAudio.playCapture();
-          } else {
-            chessAudio.playMove();
+          if (!isMuted) {
+            if (aiMoveResult?.captured) {
+              chessAudio.playCapture();
+            } else {
+              chessAudio.playMove();
+            }
           }
         } catch (err) {
           console.error('Error executing computer response move:', err);
@@ -140,7 +149,7 @@ export function usePuzzleTrainer(puzzle, onPuzzleSolved) {
         if (nextStepIndex >= totalSolutionSteps) {
           setStatus('SOLVED');
           setFeedbackMessage('¡Felicitaciones! Has resuelto la combinación de Alexander Koblenz.');
-          chessAudio.playSuccess();
+          if (!isMuted) chessAudio.playSuccess();
           triggerConfetti();
           if (onPuzzleSolved) onPuzzleSolved(puzzle.id);
         } else {
@@ -155,7 +164,7 @@ export function usePuzzleTrainer(puzzle, onPuzzleSolved) {
       if (nextStepIndex >= totalSolutionSteps) {
         setStatus('SOLVED');
         setFeedbackMessage('¡Excelente! Combinación resuelta con maestría.');
-        chessAudio.playSuccess();
+        if (!isMuted) chessAudio.playSuccess();
         triggerConfetti();
         if (onPuzzleSolved) onPuzzleSolved(puzzle.id);
       } else {
@@ -166,7 +175,7 @@ export function usePuzzleTrainer(puzzle, onPuzzleSolved) {
     }
 
     return true;
-  }, [game, puzzle, stepIndex, status, isAiThinking, onPuzzleSolved]);
+  }, [game, puzzle, stepIndex, status, isAiThinking, onPuzzleSolved, isMuted]);
 
   const toggleHint = useCallback(() => {
     setShowHint((prev) => !prev);
@@ -195,3 +204,4 @@ export function usePuzzleTrainer(puzzle, onPuzzleSolved) {
     toggleSolutionModal
   };
 }
+
